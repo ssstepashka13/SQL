@@ -1,0 +1,47 @@
+<mxfile host="app.diagrams.net">
+  <diagram id="er_inventorydb" name="ER inventorydb">
+    <mxGraphModel dx="900" dy="650" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="600" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="product_categories" value="&lt;b&gt;product_categories&lt;/b&gt; (catalog)&lt;br&gt;id (PK)&lt;br&gt;name" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="200" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="products" value="&lt;b&gt;products&lt;/b&gt; (catalog)&lt;br&gt;id (PK)&lt;br&gt;sku&lt;br&gt;name&lt;br&gt;price&lt;br&gt;category_id (FK)" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="40" y="240" width="200" height="140" as="geometry" />
+        </mxCell>
+
+        <mxCell id="warehouses" value="&lt;b&gt;warehouses&lt;/b&gt; (catalog)&lt;br&gt;id (PK)&lt;br&gt;city&lt;br&gt;address&lt;br&gt;label&lt;br&gt;is_central" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="600" y="40" width="200" height="140" as="geometry" />
+        </mxCell>
+
+        <mxCell id="orders" value="&lt;b&gt;orders&lt;/b&gt; (sales)&lt;br&gt;id (PK)&lt;br&gt;status&lt;br&gt;total_amount&lt;br&gt;created_at&lt;br&gt;warehouse_id (FK)" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="600" y="300" width="200" height="140" as="geometry" />
+        </mxCell>
+
+        <mxCell id="order_items" value="&lt;b&gt;order_items&lt;/b&gt; (sales)&lt;br&gt;order_id (PK, FK)&lt;br&gt;product_id (PK, FK)&lt;br&gt;price&lt;br&gt;quantity" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="320" y="320" width="210" height="120" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_cat_prod" value="category_id" style="edgeStyle=entityRelationEdgeStyle;html=1;fontSize=11;rounded=0;startArrow=ERone;startFill=0;endArrow=ERmany;endFill=0;" edge="1" parent="1" source="product_categories" target="products">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_wh_ord" value="warehouse_id" style="edgeStyle=entityRelationEdgeStyle;html=1;fontSize=11;rounded=0;startArrow=ERone;startFill=0;endArrow=ERmany;endFill=0;" edge="1" parent="1" source="warehouses" target="orders">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_ord_item" value="order_id" style="edgeStyle=entityRelationEdgeStyle;html=1;fontSize=11;rounded=0;startArrow=ERone;startFill=0;endArrow=ERmany;endFill=0;" edge="1" parent="1" source="orders" target="order_items">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_prod_item" value="product_id" style="edgeStyle=entityRelationEdgeStyle;html=1;fontSize=11;rounded=0;startArrow=ERone;startFill=0;endArrow=ERmany;endFill=0;" edge="1" parent="1" source="products" target="order_items">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
