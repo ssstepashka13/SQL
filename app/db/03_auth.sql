@@ -13,8 +13,16 @@ CREATE TABLE IF NOT EXISTS auth.users (
     id       serial PRIMARY KEY,
     username text NOT NULL UNIQUE,
     password text NOT NULL,
-    role     text NOT NULL CHECK (role IN ('catalog_manager', 'sales_manager'))
+    role     text NOT NULL
 );
+
+-- список ролей расширяется от задания к заданию, поэтому ограничение
+-- пересоздается: на базе от прошлого задания CREATE TABLE выше пропускается
+-- и старый CHECK иначе остался бы
+ALTER TABLE auth.users DROP CONSTRAINT IF EXISTS users_role_check;
+ALTER TABLE auth.users ADD CONSTRAINT users_role_check
+    CHECK (role IN ('catalog_manager', 'sales_manager',
+                    'inventory_manager', 'worker'));
 
 -- читать auth должны все роли, в том числе будущие
 GRANT USAGE ON SCHEMA auth TO PUBLIC;
@@ -26,5 +34,7 @@ GRANT REFERENCES ON auth.users TO app_user;
 
 INSERT INTO auth.users (username, password, role) VALUES
     ('cat_man', crypt('123456', gen_salt('bf')), 'catalog_manager'),
-    ('sale_man', crypt('123456', gen_salt('bf')), 'sales_manager')
+    ('sale_man', crypt('123456', gen_salt('bf')), 'sales_manager'),
+    ('inv_man', crypt('123456', gen_salt('bf')), 'inventory_manager'),
+    ('work_man', crypt('123456', gen_salt('bf')), 'worker')
 ON CONFLICT (username) DO NOTHING;

@@ -13,29 +13,6 @@ from validators import ChoiceValidator, NonEmptyValidator, YesNoValidator
 from auth import ALL_ROLES, ROLE_CATALOG_MANAGER
 from commands import command, CATEGORY_WAREHOUSES
 
-cities = [
-    "Москва",
-    "Санкт-Петербург",
-    "Новосибирск",
-    "Екатеринбург",
-    "Казань",
-    "Нижний Новгород",
-    "Челябинск",
-    "Самара",
-    "Омск",
-    "Ростов-на-Дону",
-    "Уфа",
-    "Красноярск",
-    "Воронеж",
-    "Пермь",
-    "Волгоград",
-]
-
-city_completer = WordCompleter(cities, ignore_case=True, sentence=True)
-city_validator = ChoiceValidator(
-    cities, message="Город должен быть из списка. Используйте Tab для автодополнения."
-)
-
 
 @dataclass
 class Warehouse:
@@ -68,11 +45,43 @@ def _render_warehouse(warehouse: Warehouse) -> None:
     console.print(panel)
 
 
+_SELECT_WAREHOUSE = """
+    SELECT w.id, c.name AS city, w.address, w.label, w.is_central
+    FROM catalog.warehouses w
+    JOIN catalog.cities c ON c.id = w.city_id
+"""
+
+
 def _find_warehouse(_id: str) -> Warehouse | None:
     conn = get_conn()
     with conn.cursor(row_factory=class_row(Warehouse)) as cur:
-        cur.execute("SELECT * FROM catalog.warehouses WHERE id = %s", (_id,))
+        cur.execute(_SELECT_WAREHOUSE + " WHERE w.id = %s", (_id,))
         return cur.fetchone()
+
+
+def _load_cities() -> dict[str, int]:
+    """Возвращает отображение название города -> id для выбора при вводе."""
+    conn = get_conn()
+    with conn.cursor() as cur:
+        cur.execute("SELECT name, id FROM catalog.cities ORDER BY name")
+        return dict(cur.fetchall())
+
+
+def _prompt_city(cities: dict[str, int], default: str | None = None) -> int:
+    """Интерактивный выбор города из таблицы catalog.cities (Tab)."""
+    names = list(cities.keys())
+    completer = WordCompleter(names, ignore_case=True, sentence=True)
+    validator = ChoiceValidator(
+        names,
+        message="Город должен быть из списка. Используйте Tab для автодополнения.",
+    )
+    name = prompt(
+        "Город: ",
+        default=default or "",
+        completer=completer,
+        validator=validator,
+    ).strip()
+    return cities[name]
 
 
 def _warehouse_count(conn: Connection) -> int:
@@ -114,7 +123,7 @@ def list_warehouses() -> None:
     table.add_column("Центральный", style="cyan", justify="center", min_width=11)
 
     with conn.cursor(row_factory=class_row(Warehouse)) as cur:
-        cur.execute("SELECT * FROM catalog.warehouses ORDER BY id")
+        cur.execute(_SELECT_WAREHOUSE + " ORDER BY w.id")
         warehouses: list[Warehouse] = cur.fetchall()
 
     for warehouse in warehouses:
@@ -150,7 +159,8 @@ def show_warehouse(_id: str) -> None:
 )
 def add_warehouse() -> None:
     conn = get_conn()
-    city = prompt("Город: ", validator=city_validator, completer=city_completer).strip()
+    cities = _load_cities()
+    city_id = _prompt_city(cities)
     address = prompt("Адрес: ", validator=NonEmptyValidator()).strip()
     label = prompt("Метка (необязательно): ").strip() or None
 
@@ -165,11 +175,12 @@ def add_warehouse() -> None:
         if is_central:
             _clear_central(conn)
         conn.execute(
-            """INSERT INTO catalog.warehouses (city, address, label, is_central)
+            """INSERT INTO catalog.warehouses (city_id, address, label, is_central)
             VALUES (%s, %s, %s, %s)""",
-            (city, address, label, is_central),
+            (city_id, address, label, is_central),
         )
 
+    city = next(name for name, cid in cities.items() if cid == city_id)
     suffix = f" ({label})" if label else ""
     central = " [центральный]" if is_central else ""
     console.print(f"[green]Склад в городе {city}{suffix}{central} добавлен[/green]")
@@ -188,12 +199,8 @@ def edit_warehouse(_id: str) -> None:
         render_error(f"Склад с ID {_id} не найден")
         return
 
-    city = prompt(
-        "Город: ",
-        default=warehouse.city,
-        validator=city_validator,
-        completer=city_completer,
-    ).strip()
+    cities = _load_cities()
+    city_id = _prompt_city(cities, default=warehouse.city)
     address = prompt(
         "Адрес: ", default=warehouse.address, validator=NonEmptyValidator()
     ).strip()
@@ -211,11 +218,12 @@ def edit_warehouse(_id: str) -> None:
             _clear_central(conn)
         conn.execute(
             """UPDATE catalog.warehouses
-            SET city = %s, address = %s, label = %s, is_central = %s
+            SET city_id = %s, address = %s, label = %s, is_central = %s
             WHERE id = %s""",
-            (city, address, label, is_central, _id),
+            (city_id, address, label, is_central, _id),
         )
 
+    city = next(name for name, cid in cities.items() if cid == city_id)
     suffix = f" ({label})" if label else ""
     console.print(f"[green]Склад в городе {city}{suffix} обновлен[/green]")
 

@@ -47,9 +47,10 @@ def _find_order(_id: str) -> Order | None:
     with conn.cursor(row_factory=class_row(Order)) as cur:
         cur.execute(
             """SELECT o.id, o.status, o.total_amount, o.created_at, o.warehouse_id,
-                w.city AS warehouse_city, u.username AS created_by_name
+                c.name AS warehouse_city, u.username AS created_by_name
             FROM sales.orders o
             JOIN catalog.warehouses w ON w.id = o.warehouse_id
+            JOIN catalog.cities c ON c.id = w.city_id
             JOIN auth.users u ON u.id = o.created_by
             WHERE o.id = %s""",
             (_id,),
@@ -138,7 +139,10 @@ def _prompt_warehouse(default: str | None = None) -> int | None:
     """Показывает список складов и просит выбрать id склада отгрузки."""
     conn = get_conn()
     with conn.cursor() as cur:
-        cur.execute("SELECT id, city, label FROM catalog.warehouses ORDER BY id")
+        cur.execute("""SELECT w.id, c.name, w.label
+            FROM catalog.warehouses w
+            JOIN catalog.cities c ON c.id = w.city_id
+            ORDER BY w.id""")
         rows = cur.fetchall()
     if not rows:
         render_error("Нет ни одного склада. Сначала добавьте склад: add warehouse")
@@ -247,9 +251,10 @@ def list_orders() -> None:
 
     with conn.cursor() as cur:
         cur.execute(
-            """SELECT o.id, o.status, o.total_amount, o.created_at, u.username, w.city
+            """SELECT o.id, o.status, o.total_amount, o.created_at, u.username, c.name
             FROM sales.orders o
             JOIN catalog.warehouses w ON w.id = o.warehouse_id
+            JOIN catalog.cities c ON c.id = w.city_id
             JOIN auth.users u ON u.id = o.created_by
             ORDER BY o.id"""
         )
