@@ -10,6 +10,7 @@ from rich.table import Table
 from console import console, render_error
 from db import get_conn
 from validators import ChoiceValidator, NonEmptyValidator, YesNoValidator
+from auth import ALL_ROLES, ROLE_CATALOG_MANAGER
 from commands import command, CATEGORY_WAREHOUSES
 
 cities = [
@@ -96,7 +97,12 @@ def _ask_is_central(default: bool) -> bool:
     return YesNoValidator.is_yes(answer)
 
 
-@command("list warehouses", "список всех складов", CATEGORY_WAREHOUSES)
+@command(
+    "list warehouses",
+    "список всех складов",
+    CATEGORY_WAREHOUSES,
+    list(ALL_ROLES),
+)
 def list_warehouses() -> None:
     conn = get_conn()
     table = Table(title="Склады", show_header=True, header_style="bold cyan")
@@ -122,7 +128,12 @@ def list_warehouses() -> None:
     console.print(table)
 
 
-@command("show warehouse", "информация о складе", CATEGORY_WAREHOUSES)
+@command(
+    "show warehouse",
+    "информация о складе",
+    CATEGORY_WAREHOUSES,
+    list(ALL_ROLES),
+)
 def show_warehouse(_id: str) -> None:
     warehouse = _find_warehouse(_id)
     if warehouse is None:
@@ -131,7 +142,12 @@ def show_warehouse(_id: str) -> None:
     _render_warehouse(warehouse)
 
 
-@command("add warehouse", "добавить склад (интерактивно)", CATEGORY_WAREHOUSES)
+@command(
+    "add warehouse",
+    "добавить склад (интерактивно)",
+    CATEGORY_WAREHOUSES,
+    [ROLE_CATALOG_MANAGER],
+)
 def add_warehouse() -> None:
     conn = get_conn()
     city = prompt("Город: ", validator=city_validator, completer=city_completer).strip()
@@ -159,7 +175,12 @@ def add_warehouse() -> None:
     console.print(f"[green]Склад в городе {city}{suffix}{central} добавлен[/green]")
 
 
-@command("edit warehouse", "редактировать склад", CATEGORY_WAREHOUSES)
+@command(
+    "edit warehouse",
+    "редактировать склад",
+    CATEGORY_WAREHOUSES,
+    [ROLE_CATALOG_MANAGER],
+)
 def edit_warehouse(_id: str) -> None:
     conn = get_conn()
     warehouse = _find_warehouse(_id)
@@ -179,14 +200,11 @@ def edit_warehouse(_id: str) -> None:
     label = (
         prompt("Метка (необязательно): ", default=warehouse.label or "").strip() or None
     )
-    is_central = _ask_is_central(default=warehouse.is_central)
-
-    if warehouse.is_central and not is_central:
-        render_error(
-            "Нельзя сделать склад не центральным: должен остаться ровно один "
-            "центральный склад. Сначала назначьте центральным другой склад."
-        )
-        return
+    # центральный склад один, снять флаг с него нельзя, поэтому и не спрашиваем
+    if warehouse.is_central:
+        is_central = True
+    else:
+        is_central = _ask_is_central(default=False)
 
     with conn.transaction():
         if is_central and not warehouse.is_central:
@@ -202,7 +220,12 @@ def edit_warehouse(_id: str) -> None:
     console.print(f"[green]Склад в городе {city}{suffix} обновлен[/green]")
 
 
-@command("delete warehouse", "удалить склад", CATEGORY_WAREHOUSES)
+@command(
+    "delete warehouse",
+    "удалить склад",
+    CATEGORY_WAREHOUSES,
+    [ROLE_CATALOG_MANAGER],
+)
 def delete_warehouse(_id: str) -> None:
     conn = get_conn()
     warehouse = _find_warehouse(_id)

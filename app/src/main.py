@@ -1,9 +1,11 @@
+import argparse
 import logging
 
 from prompt_toolkit import PromptSession
 
+from auth import login, auth_user
 from console import console, render_error
-from db import connect, DB_USER, close
+from db import connect, DB_NAME, DB_USER, close
 from setup import setup_logger
 
 # pylint: disable-next=unused-import
@@ -15,6 +17,12 @@ setup_logger(psycopg_log_level=logging.INFO)
 
 
 def main() -> None:
+    # CLI аргументы для аутентификации при старте
+    parser = argparse.ArgumentParser(description="Inventory Management System")
+    parser.add_argument("-u", "--username", help="Username for authentication")
+    parser.add_argument("-p", "--password", help="Password for authentication")
+    cli_args = parser.parse_args()
+
     # Подключение к БД
     connect()
     logging.info("App Started")
@@ -23,9 +31,19 @@ def main() -> None:
     console.print("\n[bold cyan]═══════════════════════════════════════[/bold cyan]")
     console.print("[bold cyan]   Inventory Management System[/bold cyan]")
     console.print("[bold cyan]═══════════════════════════════════════[/bold cyan]")
-    console.print(f"[dim]Подключено к БД: inventorydb (user: {DB_USER})[/dim]\n")
+    console.print(f"[dim]Подключено к БД: {DB_NAME} (user: {DB_USER})[/dim]\n")
+
+    # Аутентификация до основного цикла
+    try:
+        login(username=cli_args.username, password=cli_args.password)
+    except (KeyboardInterrupt, EOFError):
+        close()
+        console.print("\n[cyan]До свидания![/cyan]\n")
+        return
+    user = auth_user()
 
     # Создаём сессию prompt_toolkit с автодополнением команд.
+    # Completer строится после логина, чтобы включал только команды роли.
     # https://python-prompt-toolkit.readthedocs.io/en/stable/pages/asking_for_input.html#the-promptsession-object
     completer = get_completer()
     session: PromptSession[str] = PromptSession(completer=completer)
@@ -34,7 +52,7 @@ def main() -> None:
     while True:
         try:
             # Ввод команды через prompt_toolkit
-            _input = session.prompt("inventory> ").strip()
+            _input = session.prompt(f"{user.username} ({user.role})> ").strip()
 
             if not _input:
                 continue

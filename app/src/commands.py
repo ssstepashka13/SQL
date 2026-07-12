@@ -4,6 +4,8 @@ from typing import Final, Sequence, Callable
 
 from prompt_toolkit.completion import NestedCompleter
 
+from auth import auth_user
+
 # Категории команд
 CATEGORY_GENERAL: Final[str] = "ПРОЧЕЕ"
 CATEGORY_WAREHOUSES: Final[str] = "СКЛАДЫ"
@@ -26,6 +28,7 @@ class Command:
     handler: Callable[..., None]
     description: str
     category: str
+    allowed_roles: Sequence[str]
     args: Sequence[str] = field(default_factory=tuple)
 
 
@@ -33,7 +36,7 @@ class Command:
 _COMMANDS_REGISTRY: list[Command] = []
 
 
-def command(text: str, description: str, category: str):
+def command(text: str, description: str, category: str, allowed_roles: Sequence[str]):
     """
     Декоратор для регистрации команд.
     Автоматически извлекает аргументы из сигнатуры функции.
@@ -48,6 +51,7 @@ def command(text: str, description: str, category: str):
             handler=func,
             description=description,
             category=category,
+            allowed_roles=allowed_roles,
             args=args,
         )
         _COMMANDS_REGISTRY.append(cmd)
@@ -57,8 +61,10 @@ def command(text: str, description: str, category: str):
 
 
 def get_commands() -> Sequence[Command]:
-    """Возвращает список всех зарегистрированных команд."""
-    return _COMMANDS_REGISTRY
+    """Возвращает список команд, доступных роли текущего пользователя."""
+    user = auth_user()
+    cmds = [c for c in _COMMANDS_REGISTRY if user.role in c.allowed_roles]
+    return cmds
 
 
 def _build_completer_dict() -> dict:

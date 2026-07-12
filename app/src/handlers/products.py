@@ -3,7 +3,7 @@ from decimal import Decimal
 
 import psycopg
 from prompt_toolkit import prompt
-from prompt_toolkit.completion import WordCompleter
+from prompt_toolkit.shortcuts import choice
 from psycopg.rows import class_row
 from rich.panel import Panel
 from rich.table import Table
@@ -11,12 +11,12 @@ from rich.table import Table
 from console import console, render_error
 from db import get_conn
 from validators import (
-    ChoiceValidator,
     MaxLengthValidator,
     NonEmptyValidator,
     PriceValidator,
     YesNoValidator,
 )
+from auth import ALL_ROLES, ROLE_CATALOG_MANAGER
 from commands import command, CATEGORY_PRODUCTS
 
 SKU_MAX_LENGTH = 30
@@ -77,23 +77,18 @@ def _load_categories() -> dict[str, int]:
 
 
 def _prompt_category(categories: dict[str, int], default: str | None = None) -> int:
-    """Интерактивный выбор категории с автодополнением (Tab)."""
-    names = list(categories.keys())
-    completer = WordCompleter(names, ignore_case=True, sentence=True)
-    validator = ChoiceValidator(
-        names,
-        message="Категория должна быть из списка. Используйте Tab для автодополнения.",
-    )
-    name = prompt(
-        "Категория: ",
-        default=default or "",
-        completer=completer,
-        validator=validator,
-    ).strip()
-    return categories[name]
+    """Выбор категории из списка."""
+    options = [(cat_id, name) for name, cat_id in categories.items()]
+    default_id = categories.get(default) if default else None
+    return choice("Категория:", options=options, default=default_id)
 
 
-@command("list products", "список всех товаров", CATEGORY_PRODUCTS)
+@command(
+    "list products",
+    "список всех товаров",
+    CATEGORY_PRODUCTS,
+    list(ALL_ROLES),
+)
 def list_products() -> None:
     """Выводит список всех продуктов из таблицы catalog.products."""
     conn = get_conn()
@@ -120,7 +115,12 @@ def list_products() -> None:
     console.print(table)
 
 
-@command("show product", "информация о товаре", CATEGORY_PRODUCTS)
+@command(
+    "show product",
+    "информация о товаре",
+    CATEGORY_PRODUCTS,
+    list(ALL_ROLES),
+)
 def show_product(_id: str) -> None:
     """Показывает детальную информацию о продукте по его ID."""
     product = _find_product(_id)
@@ -130,7 +130,12 @@ def show_product(_id: str) -> None:
     _render_product(product)
 
 
-@command("add product", "добавить товар (интерактивно)", CATEGORY_PRODUCTS)
+@command(
+    "add product",
+    "добавить товар (интерактивно)",
+    CATEGORY_PRODUCTS,
+    [ROLE_CATALOG_MANAGER],
+)
 def add_product() -> None:
     """Добавляет новый продукт в базу данных."""
     conn = get_conn()
@@ -168,7 +173,12 @@ def add_product() -> None:
     console.print(f"[green]Товар {name} (SKU {sku}) добавлен[/green]")
 
 
-@command("edit product", "редактировать товар", CATEGORY_PRODUCTS)
+@command(
+    "edit product",
+    "редактировать товар",
+    CATEGORY_PRODUCTS,
+    [ROLE_CATALOG_MANAGER],
+)
 def edit_product(_id: str) -> None:
     """Редактирует существующий продукт."""
     conn = get_conn()
@@ -213,7 +223,12 @@ def edit_product(_id: str) -> None:
     console.print(f"[green]Товар {name} (SKU {sku}) обновлен[/green]")
 
 
-@command("delete product", "удалить товар", CATEGORY_PRODUCTS)
+@command(
+    "delete product",
+    "удалить товар",
+    CATEGORY_PRODUCTS,
+    [ROLE_CATALOG_MANAGER],
+)
 def delete_product(_id: str) -> None:
     """Удаляет продукт из базы данных."""
     conn = get_conn()

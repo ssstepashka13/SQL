@@ -4,6 +4,7 @@ from decimal import Decimal
 
 from prompt_toolkit import prompt
 from prompt_toolkit.completion import WordCompleter
+from prompt_toolkit.shortcuts import choice
 from psycopg.rows import class_row
 from rich.panel import Panel
 from rich.table import Table
@@ -13,9 +14,9 @@ from db import get_conn
 from validators import (
     ChoiceValidator,
     PositiveIntValidator,
-    PriceValidator,
     YesNoValidator,
 )
+from auth import ROLE_SALES_MANAGER, auth_user
 from commands import command, CATEGORY_ORDERS
 
 UNPUBLISHED = "unpublished"
@@ -29,6 +30,7 @@ class Order:
     created_at: datetime
     warehouse_id: int
     warehouse_city: str
+    created_by_name: str
 
 
 @dataclass
@@ -44,9 +46,11 @@ def _find_order(_id: str) -> Order | None:
     conn = get_conn()
     with conn.cursor(row_factory=class_row(Order)) as cur:
         cur.execute(
-            """SELECT o.*, w.city AS warehouse_city
+            """SELECT o.id, o.status, o.total_amount, o.created_at, o.warehouse_id,
+                w.city AS warehouse_city, u.username AS created_by_name
             FROM sales.orders o
             JOIN catalog.warehouses w ON w.id = o.warehouse_id
+            JOIN auth.users u ON u.id = o.created_by
             WHERE o.id = %s""",
             (_id,),
         )
@@ -97,6 +101,7 @@ def _render_order(order: Order) -> None:
     table.add_row("Статус", order.status)
     table.add_row("Сумма", f"{order.total_amount:.2f}")
     table.add_row("Создан", order.created_at.strftime("%Y-%m-%d %H:%M"))
+    table.add_row("Создал", order.created_by_name)
     table.add_row("Склад", f"{order.warehouse_id} ({order.warehouse_city})")
 
     panel = Panel(
@@ -188,14 +193,8 @@ def _prompt_existing_item(order_id: str) -> int | None:
     if not items:
         render_error("В заказе нет товаров")
         return None
-    choices = {f"{item.sku} - {item.name}": item.product_id for item in items}
-    keys = list(choices)
-    picked = prompt(
-        "Товар из заказа: ",
-        completer=WordCompleter(keys, ignore_case=True, sentence=True),
-        validator=ChoiceValidator(keys, message="Выберите товар из заказа (Tab)"),
-    ).strip()
-    return choices[picked]
+    options = [(item.product_id, f"{item.sku} - {item.name}") for item in items]
+    return choice("Товар из заказа:", options=options)
 
 
 def _add_single_item(order_id: str) -> bool:
@@ -204,11 +203,8 @@ def _add_single_item(order_id: str) -> bool:
         return False
     product_id, product_price = picked
     quantity = int(prompt("Количество: ", validator=PositiveIntValidator()).strip())
-    price = Decimal(
-        prompt(
-            "Цена: ", default=f"{product_price:.2f}", validator=PriceValidator()
-        ).strip()
-    )
+    # цена не вводится, товар уходит в заказ по цене из каталога
+    price = product_price
     conn = get_conn()
     conn.execute(
         """INSERT INTO sales.order_items (order_id, product_id, price, quantity)
@@ -232,7 +228,12 @@ def _add_items_loop(order_id: str) -> None:
             return
 
 
-@command("list orders", "список всех заказов", CATEGORY_ORDERS)
+@command(
+    "list orders",
+    "список всех заказов",
+    CATEGORY_ORDERS,
+    [ROLE_SALES_MANAGER],
+)
 def list_orders() -> None:
     """Выводит список всех заказов."""
     conn = get_conn()
@@ -241,27 +242,37 @@ def list_orders() -> None:
     table.add_column("Статус", style="green", min_width=12)
     table.add_column("Сумма", style="yellow", justify="right", min_width=10)
     table.add_column("Создан", style="cyan", min_width=16)
+    table.add_column("Создал", style="blue", min_width=10)
     table.add_column("Склад", style="magenta", min_width=15)
 
     with conn.cursor() as cur:
-        cur.execute("""SELECT o.id, o.status, o.total_amount, o.created_at, w.city
+        cur.execute(
+            """SELECT o.id, o.status, o.total_amount, o.created_at, u.username, w.city
             FROM sales.orders o
             JOIN catalog.warehouses w ON w.id = o.warehouse_id
-            ORDER BY o.id""")
+            JOIN auth.users u ON u.id = o.created_by
+            ORDER BY o.id"""
+        )
         rows = cur.fetchall()
 
-    for oid, status, total, created_at, city in rows:
+    for oid, status, total, created_at, username, city in rows:
         table.add_row(
             str(oid),
             status,
             f"{total:.2f}",
             created_at.strftime("%Y-%m-%d %H:%M"),
+            username,
             city,
         )
     console.print(table)
 
 
-@command("show order", "информация о заказе", CATEGORY_ORDERS)
+@command(
+    "show order",
+    "информация о заказе",
+    CATEGORY_ORDERS,
+    [ROLE_SALES_MANAGER],
+)
 def show_order(_id: str) -> None:
     """Показывает заказ и его позиции."""
     order = _find_order(_id)
@@ -271,7 +282,12 @@ def show_order(_id: str) -> None:
     _render_order(order)
 
 
-@command("add order", "добавить заказ (интерактивно)", CATEGORY_ORDERS)
+@command(
+    "add order",
+    "добавить заказ (интерактивно)",
+    CATEGORY_ORDERS,
+    [ROLE_SALES_MANAGER],
+)
 def add_order() -> None:
     """Создает заказ и предлагает сразу добавить в него товары."""
     conn = get_conn()
@@ -281,8 +297,9 @@ def add_order() -> None:
 
     with conn.cursor() as cur:
         cur.execute(
-            "INSERT INTO sales.orders (warehouse_id) VALUES (%s) RETURNING id",
-            (warehouse_id,),
+            """INSERT INTO sales.orders (warehouse_id, created_by)
+            VALUES (%s, %s) RETURNING id""",
+            (warehouse_id, auth_user().id),
         )
         order_id = cur.fetchone()[0]  # type: ignore[index]
     console.print(f"[green]Заказ #{order_id} создан[/green]")
@@ -292,7 +309,12 @@ def add_order() -> None:
     show_order(str(order_id))
 
 
-@command("edit order", "редактировать заказ", CATEGORY_ORDERS)
+@command(
+    "edit order",
+    "редактировать заказ",
+    CATEGORY_ORDERS,
+    [ROLE_SALES_MANAGER],
+)
 def edit_order(_id: str) -> None:
     """Редактирует заказ. Статус менять нельзя, задается только склад отгрузки."""
     conn = get_conn()
@@ -313,7 +335,12 @@ def edit_order(_id: str) -> None:
     console.print(f"[green]Заказ #{order.id} обновлен[/green]")
 
 
-@command("delete order", "удалить заказ", CATEGORY_ORDERS)
+@command(
+    "delete order",
+    "удалить заказ",
+    CATEGORY_ORDERS,
+    [ROLE_SALES_MANAGER],
+)
 def delete_order(_id: str) -> None:
     """Удаляет заказ вместе с его позициями."""
     conn = get_conn()
@@ -333,7 +360,12 @@ def delete_order(_id: str) -> None:
     console.print(f"[green]Заказ #{order.id} удален[/green]")
 
 
-@command("publish order", "опубликовать заказ (unpublished -> new)", CATEGORY_ORDERS)
+@command(
+    "publish order",
+    "опубликовать заказ (unpublished -> new)",
+    CATEGORY_ORDERS,
+    [ROLE_SALES_MANAGER],
+)
 def publish_order(_id: str) -> None:
     """Меняет статус заказа с unpublished на new. После этого заказ неизменяем."""
     conn = get_conn()
@@ -349,7 +381,12 @@ def publish_order(_id: str) -> None:
     console.print(f"[green]Заказ #{order.id} опубликован (статус new)[/green]")
 
 
-@command("add order_item", "добавить товар в заказ", CATEGORY_ORDERS)
+@command(
+    "add order_item",
+    "добавить товар в заказ",
+    CATEGORY_ORDERS,
+    [ROLE_SALES_MANAGER],
+)
 def add_order_item(order_id: str) -> None:
     """Добавляет один или несколько товаров в существующий заказ."""
     order = _find_order(order_id)
@@ -363,7 +400,12 @@ def add_order_item(order_id: str) -> None:
     show_order(order_id)
 
 
-@command("edit order_item", "изменить товар в заказе", CATEGORY_ORDERS)
+@command(
+    "edit order_item",
+    "изменить товар в заказе",
+    CATEGORY_ORDERS,
+    [ROLE_SALES_MANAGER],
+)
 def edit_order_item(order_id: str) -> None:
     """Меняет цену и количество выбранной позиции заказа."""
     conn = get_conn()
@@ -380,11 +422,11 @@ def edit_order_item(order_id: str) -> None:
 
     with conn.cursor() as cur:
         cur.execute(
-            "SELECT price, quantity FROM sales.order_items "
+            "SELECT quantity FROM sales.order_items "
             "WHERE order_id = %s AND product_id = %s",
             (order_id, product_id),
         )
-        cur_price, cur_quantity = cur.fetchone()  # type: ignore[misc]
+        (cur_quantity,) = cur.fetchone()  # type: ignore[misc]
 
     quantity = int(
         prompt(
@@ -393,19 +435,21 @@ def edit_order_item(order_id: str) -> None:
             validator=PositiveIntValidator(),
         ).strip()
     )
-    price = Decimal(
-        prompt("Цена: ", default=f"{cur_price:.2f}", validator=PriceValidator()).strip()
-    )
     conn.execute(
-        """UPDATE sales.order_items SET price = %s, quantity = %s
+        """UPDATE sales.order_items SET quantity = %s
         WHERE order_id = %s AND product_id = %s""",
-        (price, quantity, order_id, product_id),
+        (quantity, order_id, product_id),
     )
     _recalc_total(order_id)
     console.print("[green]Позиция заказа обновлена[/green]")
 
 
-@command("delete order_item", "удалить товар из заказа", CATEGORY_ORDERS)
+@command(
+    "delete order_item",
+    "удалить товар из заказа",
+    CATEGORY_ORDERS,
+    [ROLE_SALES_MANAGER],
+)
 def delete_order_item(order_id: str) -> None:
     """Удаляет выбранную позицию из заказа."""
     conn = get_conn()
