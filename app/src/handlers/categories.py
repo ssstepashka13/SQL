@@ -9,6 +9,7 @@ from rich.table import Table
 from console import console, render_error
 from db import get_conn
 from validators import NonEmptyValidator, YesNoValidator
+from auth import ALL_ROLES, ROLE_CATALOG_MANAGER
 from commands import command, CATEGORY_CATEGORIES
 
 
@@ -44,7 +45,12 @@ def _find_category(_id: str) -> Category | None:
         return cur.fetchone()
 
 
-@command("list product_categories", "список всех категорий", CATEGORY_CATEGORIES)
+@command(
+    "list product_categories",
+    "список всех категорий",
+    CATEGORY_CATEGORIES,
+    list(ALL_ROLES),
+)
 def list_categories() -> None:
     conn = get_conn()
     table = Table(title="Категории товаров", show_header=True, header_style="bold cyan")
@@ -61,7 +67,12 @@ def list_categories() -> None:
     console.print(table)
 
 
-@command("show product_category", "информация о категории", CATEGORY_CATEGORIES)
+@command(
+    "show product_category",
+    "информация о категории",
+    CATEGORY_CATEGORIES,
+    list(ALL_ROLES),
+)
 def show_category(_id: str) -> None:
     category = _find_category(_id)
     if category is None:
@@ -70,7 +81,12 @@ def show_category(_id: str) -> None:
     _render_category(category)
 
 
-@command("add product_category", "добавить категорию", CATEGORY_CATEGORIES)
+@command(
+    "add product_category",
+    "добавить категорию",
+    CATEGORY_CATEGORIES,
+    [ROLE_CATALOG_MANAGER],
+)
 def add_category() -> None:
     conn = get_conn()
     name = prompt("Название: ", validator=NonEmptyValidator()).strip()
@@ -84,7 +100,12 @@ def add_category() -> None:
     console.print(f"[green]Категория {name} добавлена[/green]")
 
 
-@command("edit product_category", "редактировать категорию", CATEGORY_CATEGORIES)
+@command(
+    "edit product_category",
+    "редактировать категорию",
+    CATEGORY_CATEGORIES,
+    [ROLE_CATALOG_MANAGER],
+)
 def edit_category(_id: str) -> None:
     conn = get_conn()
     category = _find_category(_id)
@@ -106,7 +127,12 @@ def edit_category(_id: str) -> None:
     console.print(f"[green]Категория {name} обновлена[/green]")
 
 
-@command("delete product_category", "удалить категорию", CATEGORY_CATEGORIES)
+@command(
+    "delete product_category",
+    "удалить категорию",
+    CATEGORY_CATEGORIES,
+    [ROLE_CATALOG_MANAGER],
+)
 def delete_category(_id: str) -> None:
     conn = get_conn()
     category = _find_category(_id)

@@ -1,8 +1,8 @@
-"""create sales schema with orders and order_items
+"""add created_by to orders
 
-Revision ID: 30b0202b4409
-Revises: 46c2b92c944e
-Create Date: 2026-07-01 17:57:24.133549
+Revision ID: 9f30e47c51a6
+Revises: dc25db16b716
+Create Date: 2026-07-04 13:14:09.575460
 
 """
 from typing import Sequence, Union
@@ -12,8 +12,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '30b0202b4409'
-down_revision: Union[str, None] = '46c2b92c944e'
+revision: str = '9f30e47c51a6'
+down_revision: Union[str, None] = 'dc25db16b716'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
