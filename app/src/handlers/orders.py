@@ -16,7 +16,7 @@ from validators import (
     PositiveIntValidator,
     YesNoValidator,
 )
-from auth import ROLE_SALES_MANAGER, auth_user
+from auth import ROLE_INVENTORY_MANAGER, ROLE_SALES_MANAGER, auth_user
 from commands import command, CATEGORY_ORDERS
 
 UNPUBLISHED = "unpublished"
@@ -113,6 +113,12 @@ def _render_order(order: Order) -> None:
     )
     console.print(panel)
 
+    # inventory_manager видит по каждой позиции вычисляемый статус;
+    # у sales_manager нет прав на схему inventory, ему показывается обычный список
+    if auth_user().role == ROLE_INVENTORY_MANAGER:
+        _render_items_with_status(order)
+        return
+
     items = _load_items(str(order.id))
     if not items:
         console.print("[dim]В заказе пока нет товаров[/dim]")
@@ -131,6 +137,80 @@ def _render_order(order: Order) -> None:
             f"{item.price:.2f}",
             str(item.quantity),
             f"{item.price * item.quantity:.2f}",
+        )
+    console.print(items_table)
+
+
+def _item_status(
+    quantity: int,
+    reserved_qty: int,
+    delivery_status: str | None,
+    transfer_from: str | None,
+    transfer_arriving,
+) -> str:
+    """Статус позиции нигде не хранится, он выводится из состояния других таблиц."""
+    if delivery_status == "shipped":
+        return "отгружено"
+    if delivery_status == "planned":
+        return "запланирована отгрузка"
+    if reserved_qty >= quantity:
+        return "в резерве"
+    if transfer_from is not None:
+        status = f"в пути из {transfer_from}"
+        if transfer_arriving is not None:
+            status += f", прибытие {transfer_arriving.strftime('%Y-%m-%d %H:%M')}"
+        return status
+    return "ожидает обработки"
+
+
+def _render_items_with_status(order: Order) -> None:
+    conn = get_conn()
+    with conn.cursor() as cur:
+        cur.execute(
+            """SELECT p.sku, p.name, oi.price, oi.quantity,
+                COALESCE(r.quantity, 0) AS reserved_qty,
+                di.status AS delivery_status,
+                tf.from_city, tf.arriving_at
+            FROM sales.order_items oi
+            JOIN catalog.products p ON p.id = oi.product_id
+            LEFT JOIN inventory.reserves r
+                ON r.order_id = oi.order_id AND r.product_id = oi.product_id
+            LEFT JOIN inventory.deliveries d ON d.order_id = oi.order_id
+            LEFT JOIN inventory.delivery_items di
+                ON di.delivery_id = d.id AND di.product_id = oi.product_id
+            LEFT JOIN LATERAL (
+                SELECT c.name AS from_city, t.arriving_at
+                FROM inventory.transfer_items ti
+                JOIN inventory.transfers t ON t.id = ti.transfer_id
+                JOIN catalog.warehouses fw ON fw.id = t.from_warehouse_id
+                JOIN catalog.cities c ON c.id = fw.city_id
+                WHERE ti.reserve_id = r.id AND ti.status <> 'received'
+                ORDER BY ti.id
+                LIMIT 1
+            ) tf ON true
+            WHERE oi.order_id = %s
+            ORDER BY p.sku""",
+            (order.id,),
+        )
+        rows = cur.fetchall()
+
+    if not rows:
+        console.print("[dim]В заказе пока нет товаров[/dim]")
+        return
+
+    items_table = Table(title="Позиции заказа", header_style="bold cyan")
+    items_table.add_column("SKU", style="cyan")
+    items_table.add_column("Товар", style="green")
+    items_table.add_column("Цена", style="yellow", justify="right")
+    items_table.add_column("Кол-во", style="magenta", justify="right")
+    items_table.add_column("Статус", style="white", min_width=20)
+    for sku, name, price, quantity, reserved, d_status, t_from, t_arr in rows:
+        items_table.add_row(
+            sku,
+            name,
+            f"{price:.2f}",
+            str(quantity),
+            _item_status(quantity, reserved, d_status, t_from, t_arr),
         )
     console.print(items_table)
 
@@ -276,7 +356,7 @@ def list_orders() -> None:
     "show order",
     "информация о заказе",
     CATEGORY_ORDERS,
-    [ROLE_SALES_MANAGER],
+    [ROLE_SALES_MANAGER, ROLE_INVENTORY_MANAGER],
 )
 def show_order(_id: str) -> None:
     """Показывает заказ и его позиции."""
