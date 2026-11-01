@@ -1,0 +1,218 @@
+{
+  "captured_at": "2026-11-01T18:30:37.900Z",
+  "version": "PostgreSQL 18.6 (PGlite 0.5.14) on wasm32-unknown-emscripten, compiled by emcc (Emscripten gcc/clang-like replacement + linker emulating GNU ld) 6.0.5 (1db513782be24469589d7cb8a1f1834e9a33f271), 32-bit",
+  "queries": [
+    {
+      "query_number": 9,
+      "client_ms": 42765.109240000005,
+      "rows": 1,
+      "server_ms": 42574.756398
+    },
+    {
+      "query_number": 8,
+      "client_ms": 2092.6952210000004,
+      "rows": 0,
+      "server_ms": 2088.757376
+    },
+    {
+      "query_number": 7,
+      "client_ms": 774.560373,
+      "rows": 10,
+      "server_ms": 765.523352
+    },
+    {
+      "query_number": 2,
+      "client_ms": 81.70698799999991,
+      "rows": 2,
+      "server_ms": 72.22045
+    },
+    {
+      "query_number": 15,
+      "client_ms": 71.47442300000694,
+      "rows": 362,
+      "server_ms": 66.657413
+    },
+    {
+      "query_number": 12,
+      "client_ms": 36.61298800000077,
+      "rows": 3,
+      "server_ms": 30.254416
+    },
+    {
+      "query_number": 5,
+      "client_ms": 15.575484999999844,
+      "rows": 1,
+      "server_ms": 12.586993
+    },
+    {
+      "query_number": 1,
+      "client_ms": 14.849048000000039,
+      "rows": 1,
+      "server_ms": 5.428205999999999
+    },
+    {
+      "query_number": 3,
+      "client_ms": 9.883039000000053,
+      "rows": 20,
+      "server_ms": 4.718158
+    },
+    {
+      "query_number": 11,
+      "client_ms": 5.084538000002794,
+      "rows": 0,
+      "server_ms": 2.850761
+    },
+    {
+      "query_number": 13,
+      "client_ms": 6.6627970000045025,
+      "rows": 6,
+      "server_ms": 1.949153
+    },
+    {
+      "query_number": 10,
+      "client_ms": 8.864851000005729,
+      "rows": 1,
+      "server_ms": 0.902853
+    },
+    {
+      "query_number": 6,
+      "client_ms": 4.249336000000085,
+      "rows": 2,
+      "server_ms": 0.361559
+    },
+    {
+      "query_number": 4,
+      "client_ms": 3.868543999999929,
+      "rows": 93,
+      "server_ms": 0.17918
+    },
+    {
+      "query_number": 14,
+      "client_ms": 0.8527310000063153,
+      "rows": 1,
+      "server_ms": 0.108342
+    }
+  ],
+  "pg_stat_statements": [
+    {
+      "queryid": "8072499401255063498",
+      "query": "SELECT count(*)\nFROM order_statuses os\n    JOIN orders o ON o.order_id = os.order_id\nWHERE (SELECT count(*)\n\t   FROM order_statuses os1\n\t   WHERE os1.order_id = o.order_id AND os1.status_id = $1) = $2\n\tAND o.city_id = $3",
+      "calls": 1,
+      "total_exec_time": 42574.756398,
+      "mean_exec_time": 42574.756398,
+      "rows": 1
+    },
+    {
+      "queryid": "2421936484596075361",
+      "query": "SELECT *\nFROM user_logs\nWHERE datetime::date > current_date",
+      "calls": 1,
+      "total_exec_time": 2088.757376,
+      "mean_exec_time": 2088.757376,
+      "rows": 0
+    },
+    {
+      "queryid": "-114514720530728233",
+      "query": "SELECT event, datetime\nFROM user_logs\nWHERE visitor_uuid = $1\nORDER BY 2",
+      "calls": 1,
+      "total_exec_time": 765.523352,
+      "mean_exec_time": 765.523352,
+      "rows": 10
+    },
+    {
+      "queryid": "2204553513715092290",
+      "query": "SELECT o.order_id, o.order_dt, o.final_cost, s.status_name\nFROM order_statuses os\n    JOIN orders o ON o.order_id = os.order_id\n    JOIN statuses s ON s.status_id = os.status_id\nWHERE o.user_id = $1::uuid\n\tAND os.status_dt IN (\n\tSELECT max(status_dt)\n\tFROM order_statuses\n\tWHERE order_id = o.order_id\n    )",
+      "calls": 1,
+      "total_exec_time": 72.22045,
+      "mean_exec_time": 72.22045,
+      "rows": 2
+    },
+    {
+      "queryid": "-3508914013174602230",
+      "query": "SELECT d.name, SUM(count) AS orders_quantity\nFROM order_items oi\n    JOIN dishes d ON d.object_id = oi.item\nWHERE oi.item IN (\n\tSELECT item\n\tFROM (SELECT item, SUM(count) AS total_sales\n\t\t  FROM order_items oi\n\t\t  GROUP BY 1) dishes_sales\n\tWHERE dishes_sales.total_sales > (\n\t\tSELECT SUM(t.total_sales)/ COUNT(*)\n\t\tFROM (SELECT item, SUM(count) AS total_sales\n\t\t\tFROM order_items oi\n\t\t\tGROUP BY\n\t\t\t\t1) t)\n)\nGROUP BY 1\nORDER BY orders_quantity DESC",
+      "calls": 1,
+      "total_exec_time": 66.657413,
+      "mean_exec_time": 66.657413,
+      "rows": 362
+    },
+    {
+      "queryid": "1854882156320896498",
+      "query": "SELECT $1, avg(dp.price)\nFROM dishes_prices dp\n    JOIN dishes d ON d.object_id = dp.dishes_id\nWHERE dp.date_end IS NULL AND d.fish = $2\nUNION\nSELECT $3, avg(dp.price)\nFROM dishes_prices dp\n    JOIN dishes d ON d.object_id = dp.dishes_id\nWHERE dp.date_end IS NULL AND d.meat = $4\nUNION\nSELECT $5, avg(dp.price)\nFROM dishes_prices dp\n    JOIN dishes d ON d.object_id = dp.dishes_id\nWHERE dp.date_end IS NULL AND d.spicy = $6\nORDER BY 2",
+      "calls": 1,
+      "total_exec_time": 30.254416,
+      "mean_exec_time": 30.254416,
+      "rows": 3
+    },
+    {
+      "queryid": "9069122302002401625",
+      "query": "SELECT max(p.payment_sum) max_payment, min(p.payment_sum) min_payment\nFROM payments p\n    JOIN orders o ON o.order_id = p.order_id\nWHERE o.city_id = $1",
+      "calls": 1,
+      "total_exec_time": 12.586993,
+      "mean_exec_time": 12.586993,
+      "rows": 1
+    },
+    {
+      "queryid": "-6613751720948066953",
+      "query": "SELECT avg(dp.price)\nFROM dishes_prices dp\n    JOIN dishes d ON dp.dishes_id = d.object_id\nWHERE d.rest_id LIKE $1\n\tAND dp.date_begin::date <= current_date\n\tAND (dp.date_end::date >= current_date\n\t\tOR dp.date_end IS NULL)",
+      "calls": 1,
+      "total_exec_time": 5.428205999999999,
+      "mean_exec_time": 5.428205999999999,
+      "rows": 1
+    },
+    {
+      "queryid": "6570179463081968943",
+      "query": "SELECT u.user_id, u.first_name\nFROM users u\nWHERE u.last_name IN ($1 /*, ... */)\nORDER BY 1 DESC",
+      "calls": 1,
+      "total_exec_time": 4.718158,
+      "mean_exec_time": 4.718158,
+      "rows": 20
+    },
+    {
+      "queryid": "-9026773610304054056",
+      "query": "SELECT user_id, current_date - birth_date\nFROM users\nWHERE city_id = $1\n\tAND birth_date >= current_date - $2\n\tAND birth_date <= current_date + $3",
+      "calls": 1,
+      "total_exec_time": 2.850761,
+      "mean_exec_time": 2.850761,
+      "rows": 0
+    },
+    {
+      "queryid": "913227969652085334",
+      "query": "SELECT ROW_NUMBER() OVER( ORDER BY sum(o.final_cost) DESC),\n\tc.city_name,\n\tsum(o.final_cost)\nFROM cities c\n    JOIN orders o ON o.city_id = c.city_id\nWHERE order_dt >= to_timestamp($1, $2)\n\tAND order_dt < to_timestamp($3, $4)\nGROUP BY c.city_name",
+      "calls": 1,
+      "total_exec_time": 1.949153,
+      "mean_exec_time": 1.949153,
+      "rows": 6
+    },
+    {
+      "queryid": "-9067429053167162932",
+      "query": "SELECT (SELECT count(*)\n\t    FROM dishes_prices dp\n\t    WHERE dp.date_end IS NULL\n\t\t    AND dp.price > $1)::NUMERIC / count(*)::NUMERIC\nFROM dishes_prices\nWHERE date_end IS NULL",
+      "calls": 1,
+      "total_exec_time": 0.902853,
+      "mean_exec_time": 0.902853,
+      "rows": 1
+    },
+    {
+      "queryid": "4660203224165651078",
+      "query": "SELECT p.id partner_id, p.chain partner_name\nFROM partners p\n    JOIN cities c ON c.city_id = p.city_id\nWHERE p.type = $1\n\tAND c.city_name = $2",
+      "calls": 1,
+      "total_exec_time": 0.361559,
+      "mean_exec_time": 0.361559,
+      "rows": 2
+    },
+    {
+      "queryid": "4682573486490742523",
+      "query": "SELECT d.object_id, d.name\nFROM dishes d\nWHERE d.name LIKE $1",
+      "calls": 1,
+      "total_exec_time": 0.17918,
+      "mean_exec_time": 0.17918,
+      "rows": 93
+    },
+    {
+      "queryid": "2624814192963768335",
+      "query": "SELECT COUNT(*)\nFROM orders\nWHERE user_id = $1",
+      "calls": 1,
+      "total_exec_time": 0.108342,
+      "mean_exec_time": 0.108342,
+      "rows": 1
+    }
+  ]
+}

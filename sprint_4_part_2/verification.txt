@@ -1,0 +1,10 @@
+Full restored dump: all six original/rewritten result bags equal.
+Schema columns/types/defaults and index catalog unchanged.
+
+{ test: 'query_9', mismatches: 0 }
+{ test: 'query_8', mismatches: 0 }
+{ test: 'query_7', mismatches: 0 }
+{ test: 'query_2', mismatches: 0 }
+{ test: 'query_15', mismatches: 0 }
+{ test: 'query_12', mismatches: 0 }
+FIXTURES PASS
