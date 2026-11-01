@@ -1,0 +1,237 @@
+QUERY 9
+Aggregate  (cost=61930339.67..61930339.68 rows=1 width=8) (actual time=41727.997..41728.001 rows=1.00 loops=1)
+  Buffers: shared hit=3313596
+  ->  Nested Loop  (cost=0.30..61930339.45 rows=90 width=0) (actual time=81.576..41726.068 rows=1190.00 loops=1)
+        Buffers: shared hit=3313596
+        ->  Seq Scan on order_statuses os  (cost=0.00..2059.34 rows=124334 width=8) (actual time=0.021..38.127 rows=124334.00 loops=1)
+              Buffers: shared hit=816
+        ->  Memoize  (cost=0.30..2681.36 rows=1 width=8) (actual time=0.334..0.334 rows=0.01 loops=124334)
+              Cache Key: os.order_id
+              Cache Mode: logical
+              Hits: 96650  Misses: 27684  Evictions: 0  Overflows: 0  Memory Usage: 1444kB
+              Buffers: shared hit=3312780
+              ->  Index Scan using orders_order_id_idx on orders o  (cost=0.29..2681.35 rows=1 width=8) (actual time=1.498..1.498 rows=0.04 loops=27684)
+                    Index Cond: (order_id = os.order_id)
+                    Filter: ((city_id = 1) AND ((SubPlan 1) = 0))
+                    Rows Removed by Filter: 1
+                    Index Searches: 27684
+                    Buffers: shared hit=3312780
+                    SubPlan 1
+                      ->  Aggregate  (cost=2681.01..2681.02 rows=1 width=8) (actual time=10.448..10.448 rows=1.00 loops=3958)
+                            Buffers: shared hit=3229728
+                            ->  Seq Scan on order_statuses os1  (cost=0.00..2681.01 rows=1 width=0) (actual time=6.695..10.412 rows=0.70 loops=3958)
+                                  Filter: ((order_id = o.order_id) AND (status_id = 2))
+                                  Rows Removed by Filter: 124333
+                                  Buffers: shared hit=3229728
+Planning:
+  Buffers: shared hit=6
+Planning Time: 0.650 ms
+Execution Time: 41728.575 ms
+
+QUERY 8
+Append  (cost=0.00..156015.32 rows=1551294 width=83) (actual time=909.408..909.411 rows=0.00 loops=1)
+  Buffers: shared hit=776 read=66040
+  ->  Seq Scan on user_logs user_logs_1  (cost=0.00..39193.25 rows=410081 width=83) (actual time=241.256..241.256 rows=0.00 loops=1)
+        Filter: ((datetime)::date > CURRENT_DATE)
+        Rows Removed by Filter: 1230243
+        Buffers: shared hit=196 read=17468
+  ->  Seq Scan on user_logs_y2021q2 user_logs_2  (cost=0.00..108238.78 rows=1132777 width=83) (actual time=664.160..664.160 rows=0.00 loops=1)
+        Filter: ((datetime)::date > CURRENT_DATE)
+        Rows Removed by Filter: 3397415
+        Buffers: shared hit=196 read=48572
+  ->  Seq Scan on user_logs_y2021q3 user_logs_3  (cost=0.00..826.82 rows=8435 width=83) (actual time=3.915..3.915 rows=0.00 loops=1)
+        Filter: ((datetime)::date > CURRENT_DATE)
+        Rows Removed by Filter: 25304
+        Buffers: shared hit=384
+  ->  Seq Scan on user_logs_y2021q4 user_logs_4  (cost=0.00..0.00 rows=1 width=584) (actual time=0.031..0.031 rows=0.00 loops=1)
+        Filter: ((datetime)::date > CURRENT_DATE)
+Planning:
+  Buffers: shared hit=4
+Planning Time: 0.538 ms
+Execution Time: 909.479 ms
+
+QUERY 7
+Sort  (cost=125000.20..125000.81 rows=241 width=19) (actual time=694.268..694.275 rows=10.00 loops=1)
+  Sort Key: user_logs.datetime
+  Sort Method: quicksort  Memory: 17kB
+  Buffers: shared hit=974 read=65842
+  ->  Append  (cost=0.00..124990.67 rows=241 width=19) (actual time=18.965..694.213 rows=10.00 loops=1)
+        Buffers: shared hit=974 read=65842
+        ->  Seq Scan on user_logs user_logs_1  (cost=0.00..33042.04 rows=78 width=18) (actual time=18.963..184.572 rows=5.00 loops=1)
+              Filter: ((visitor_uuid)::text = 'fd3a4daa-494a-423a-a9d1-03fd4a7f94e0'::text)
+              Rows Removed by Filter: 1230238
+              Buffers: shared hit=295 read=17369
+        ->  Seq Scan on user_logs_y2021q2 user_logs_2  (cost=0.00..91247.12 rows=145 width=18) (actual time=49.105..507.082 rows=5.00 loops=1)
+              Filter: ((visitor_uuid)::text = 'fd3a4daa-494a-423a-a9d1-03fd4a7f94e0'::text)
+              Rows Removed by Filter: 3397410
+              Buffers: shared hit=295 read=48473
+        ->  Seq Scan on user_logs_y2021q3 user_logs_3  (cost=0.00..700.30 rows=17 width=18) (actual time=2.401..2.401 rows=0.00 loops=1)
+              Filter: ((visitor_uuid)::text = 'fd3a4daa-494a-423a-a9d1-03fd4a7f94e0'::text)
+              Rows Removed by Filter: 25304
+              Buffers: shared hit=384
+        ->  Seq Scan on user_logs_y2021q4 user_logs_4  (cost=0.00..0.00 rows=1 width=282) (actual time=0.108..0.108 rows=0.00 loops=1)
+              Filter: ((visitor_uuid)::text = 'fd3a4daa-494a-423a-a9d1-03fd4a7f94e0'::text)
+Planning:
+  Buffers: shared hit=4
+Planning Time: 0.501 ms
+Execution Time: 694.332 ms
+
+QUERY 2
+Nested Loop  (cost=2374.52..9544.04 rows=1 width=46) (actual time=65.903..129.143 rows=2.00 loops=1)
+  Join Filter: (os.status_id = s.status_id)
+  Rows Removed by Join Filter: 10
+  Buffers: shared hit=3269
+  ->  Nested Loop  (cost=2374.52..9542.91 rows=1 width=26) (actual time=65.862..129.065 rows=2.00 loops=1)
+        Buffers: shared hit=3267
+        ->  Bitmap Heap Scan on orders o  (cost=4.31..15.48 rows=3 width=22) (actual time=0.311..0.316 rows=2.00 loops=1)
+              Recheck Cond: (user_id = 'c2885b45-dddd-4df3-b9b3-2cc012df727c'::uuid)
+              Heap Blocks: exact=1
+              Buffers: shared hit=3
+              ->  Bitmap Index Scan on orders_user_id_idx  (cost=0.00..4.31 rows=3 width=0) (actual time=0.013..0.014 rows=2.00 loops=1)
+                    Index Cond: (user_id = 'c2885b45-dddd-4df3-b9b3-2cc012df727c'::uuid)
+                    Index Searches: 1
+                    Buffers: shared hit=2
+        ->  Hash Join  (cost=2370.21..4755.94 rows=1 width=12) (actual time=64.134..64.365 rows=1.00 loops=2)
+              Hash Cond: (os.status_dt = (max(order_statuses.status_dt)))
+              Join Filter: (o.order_id = os.order_id)
+              Buffers: shared hit=3264
+              ->  Seq Scan on order_statuses os  (cost=0.00..2059.34 rows=124334 width=20) (actual time=0.007..25.334 rows=124334.00 loops=2)
+                    Buffers: shared hit=1632
+              ->  Hash  (cost=2370.20..2370.20 rows=1 width=8) (actual time=9.794..9.795 rows=1.00 loops=2)
+                    Buckets: 1024  Batches: 1  Memory Usage: 5kB
+                    Buffers: shared hit=1632
+                    ->  Aggregate  (cost=2370.19..2370.20 rows=1 width=8) (actual time=9.786..9.787 rows=1.00 loops=2)
+                          Buffers: shared hit=1632
+                          ->  Seq Scan on order_statuses  (cost=0.00..2370.18 rows=5 width=8) (actual time=9.731..9.770 rows=6.00 loops=2)
+                                Filter: (order_id = o.order_id)
+                                Rows Removed by Filter: 124328
+                                Buffers: shared hit=1632
+  ->  Seq Scan on statuses s  (cost=0.00..1.06 rows=6 width=28) (actual time=0.017..0.019 rows=6.00 loops=2)
+        Buffers: shared hit=2
+Planning:
+  Buffers: shared hit=6
+Planning Time: 0.883 ms
+Execution Time: 129.787 ms
+
+QUERY 15
+Sort  (cost=4970.91..4972.74 rows=735 width=66) (actual time=154.520..154.587 rows=362.00 loops=1)
+  Sort Key: (sum(oi.count)) DESC
+  Sort Method: quicksort  Memory: 37kB
+  Buffers: shared hit=1500
+  InitPlan 1
+    ->  Aggregate  (cost=1555.65..1555.66 rows=1 width=32) (actual time=46.187..46.189 rows=1.00 loops=1)
+          Buffers: shared hit=496
+          ->  HashAggregate  (cost=1534.72..1544.23 rows=761 width=40) (actual time=45.594..45.970 rows=761.00 loops=1)
+                Group Key: oi_2.item
+                Batches: 1  Memory Usage: 125kB
+                Buffers: shared hit=496
+                ->  Seq Scan on order_items oi_2  (cost=0.00..1188.48 rows=69248 width=16) (actual time=0.030..17.841 rows=69248.00 loops=1)
+                      Buffers: shared hit=496
+  ->  HashAggregate  (cost=3371.06..3380.25 rows=735 width=66) (actual time=154.115..154.272 rows=362.00 loops=1)
+        Group Key: d.name
+        Batches: 1  Memory Usage: 93kB
+        Buffers: shared hit=1500
+        ->  Hash Join  (cost=1576.66..3255.65 rows=23083 width=42) (actual time=91.663..138.295 rows=35854.00 loops=1)
+              Hash Cond: (oi.item = d.object_id)
+              Buffers: shared hit=1500
+              ->  Seq Scan on order_items oi  (cost=0.00..1188.48 rows=69248 width=16) (actual time=0.014..16.280 rows=69248.00 loops=1)
+                    Buffers: shared hit=496
+              ->  Hash  (cost=1573.48..1573.48 rows=254 width=50) (actual time=91.643..91.647 rows=366.00 loops=1)
+                    Buckets: 1024  Batches: 1  Memory Usage: 32kB
+                    Buffers: shared hit=1004
+                    ->  Hash Join  (cost=1551.85..1573.48 rows=254 width=50) (actual time=90.889..91.523 rows=366.00 loops=1)
+                          Hash Cond: (d.object_id = dishes_sales.item)
+                          Buffers: shared hit=1004
+                          ->  Seq Scan on dishes d  (cost=0.00..19.62 rows=762 width=42) (actual time=0.006..0.276 rows=762.00 loops=1)
+                                Buffers: shared hit=12
+                          ->  Hash  (cost=1548.67..1548.67 rows=254 width=8) (actual time=90.873..90.876 rows=366.00 loops=1)
+                                Buckets: 1024  Batches: 1  Memory Usage: 16kB
+                                Buffers: shared hit=992
+                                ->  Subquery Scan on dishes_sales  (cost=1534.72..1548.67 rows=254 width=8) (actual time=89.781..90.765 rows=366.00 loops=1)
+                                      Buffers: shared hit=992
+                                      ->  HashAggregate  (cost=1534.72..1546.13 rows=254 width=40) (actual time=89.779..90.331 rows=366.00 loops=1)
+                                            Group Key: oi_1.item
+                                            Filter: (sum(oi_1.count) > (InitPlan 1).col1)
+                                            Batches: 1  Memory Usage: 125kB
+                                            Rows Removed by Filter: 395
+                                            Buffers: shared hit=992
+                                            ->  Seq Scan on order_items oi_1  (cost=0.00..1188.48 rows=69248 width=16) (actual time=0.004..15.069 rows=69248.00 loops=1)
+                                                  Buffers: shared hit=496
+Planning Time: 0.435 ms
+Execution Time: 154.753 ms
+
+QUERY 12
+Sort  (cost=285.23..285.24 rows=3 width=64) (actual time=4.094..4.103 rows=3.00 loops=1)
+  Sort Key: (avg(dp.price))
+  Sort Method: quicksort  Memory: 17kB
+  Buffers: shared hit=132
+  ->  Unique  (cost=285.18..285.21 rows=3 width=64) (actual time=4.051..4.065 rows=3.00 loops=1)
+        Buffers: shared hit=132
+        ->  Sort  (cost=285.18..285.19 rows=3 width=64) (actual time=4.050..4.059 rows=3.00 loops=1)
+              Sort Key: ('average price with fish'::text), (avg(dp.price))
+              Sort Method: quicksort  Memory: 17kB
+              Buffers: shared hit=132
+              ->  Append  (cost=90.96..285.16 rows=3 width=64) (actual time=1.061..4.047 rows=3.00 loops=1)
+                    Buffers: shared hit=132
+                    ->  Sort  (cost=90.96..90.97 rows=1 width=64) (actual time=1.059..1.063 rows=1.00 loops=1)
+                          Sort Key: (avg(dp.price))
+                          Sort Method: quicksort  Memory: 17kB
+                          Buffers: shared hit=44
+                          ->  Aggregate  (cost=90.94..90.95 rows=1 width=64) (actual time=1.054..1.057 rows=1.00 loops=1)
+                                Buffers: shared hit=44
+                                ->  Hash Join  (cost=23.56..90.53 rows=163 width=6) (actual time=0.179..0.998 rows=163.00 loops=1)
+                                      Hash Cond: (dp.dishes_id = d.object_id)
+                                      Buffers: shared hit=44
+                                      ->  Seq Scan on dishes_prices dp  (cost=0.00..62.48 rows=762 width=14) (actual time=0.025..0.635 rows=762.00 loops=1)
+                                            Filter: (date_end IS NULL)
+                                            Rows Removed by Filter: 2286
+                                            Buffers: shared hit=32
+                                      ->  Hash  (cost=21.52..21.52 rows=163 width=8) (actual time=0.148..0.149 rows=163.00 loops=1)
+                                            Buckets: 1024  Batches: 1  Memory Usage: 10kB
+                                            Buffers: shared hit=12
+                                            ->  Seq Scan on dishes d  (cost=0.00..21.52 rows=163 width=8) (actual time=0.007..0.105 rows=163.00 loops=1)
+                                                  Filter: (fish = 1)
+                                                  Rows Removed by Filter: 599
+                                                  Buffers: shared hit=12
+                    ->  Sort  (cost=103.46..103.47 rows=1 width=64) (actual time=1.741..1.743 rows=1.00 loops=1)
+                          Sort Key: (avg(dp_1.price))
+                          Sort Method: quicksort  Memory: 17kB
+                          Buffers: shared hit=44
+                          ->  Aggregate  (cost=103.44..103.45 rows=1 width=64) (actual time=1.728..1.730 rows=1.00 loops=1)
+                                Buffers: shared hit=44
+                                ->  Hash Join  (cost=29.81..101.78 rows=663 width=6) (actual time=0.391..1.526 rows=663.00 loops=1)
+                                      Hash Cond: (dp_1.dishes_id = d_1.object_id)
+                                      Buffers: shared hit=44
+                                      ->  Seq Scan on dishes_prices dp_1  (cost=0.00..62.48 rows=762 width=14) (actual time=0.017..0.827 rows=762.00 loops=1)
+                                            Filter: (date_end IS NULL)
+                                            Rows Removed by Filter: 2286
+                                            Buffers: shared hit=32
+                                      ->  Hash  (cost=21.52..21.52 rows=663 width=8) (actual time=0.369..0.370 rows=663.00 loops=1)
+                                            Buckets: 1024  Batches: 1  Memory Usage: 25kB
+                                            Buffers: shared hit=12
+                                            ->  Seq Scan on dishes d_1  (cost=0.00..21.52 rows=663 width=8) (actual time=0.006..0.213 rows=663.00 loops=1)
+                                                  Filter: (meat = 1)
+                                                  Rows Removed by Filter: 99
+                                                  Buffers: shared hit=12
+                    ->  Sort  (cost=90.71..90.72 rows=1 width=64) (actual time=1.232..1.234 rows=1.00 loops=1)
+                          Sort Key: (avg(dp_2.price))
+                          Sort Method: quicksort  Memory: 17kB
+                          Buffers: shared hit=44
+                          ->  Aggregate  (cost=90.69..90.70 rows=1 width=64) (actual time=1.220..1.222 rows=1.00 loops=1)
+                                Buffers: shared hit=44
+                                ->  Hash Join  (cost=23.44..90.31 rows=153 width=6) (actual time=0.150..1.172 rows=153.00 loops=1)
+                                      Hash Cond: (dp_2.dishes_id = d_2.object_id)
+                                      Buffers: shared hit=44
+                                      ->  Seq Scan on dishes_prices dp_2  (cost=0.00..62.48 rows=762 width=14) (actual time=0.015..0.699 rows=762.00 loops=1)
+                                            Filter: (date_end IS NULL)
+                                            Rows Removed by Filter: 2286
+                                            Buffers: shared hit=32
+                                      ->  Hash  (cost=21.52..21.52 rows=153 width=8) (actual time=0.129..0.129 rows=153.00 loops=1)
+                                            Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                                            Buffers: shared hit=12
+                                            ->  Seq Scan on dishes d_2  (cost=0.00..21.52 rows=153 width=8) (actual time=0.006..0.089 rows=153.00 loops=1)
+                                                  Filter: (spicy = 1)
+                                                  Rows Removed by Filter: 609
+                                                  Buffers: shared hit=12
+Planning Time: 0.552 ms
+Execution Time: 4.399 ms
